@@ -22,6 +22,21 @@ Turn raw sales-call transcripts into answers and summaries using retrieval-augme
 
 ---
 
+
+## Worklow diagrams
+
+Ingestion Pipeline
+<img width="1577" height="1131" alt="image" src="https://github.com/user-attachments/assets/393ade1e-f3c3-4d11-a2ab-8454049ff7f6" />
+
+QA workflow
+<img width="1449" height="1042" alt="image" src="https://github.com/user-attachments/assets/e4953458-e8d3-44ff-9baa-5c7443e66220" />
+
+Summarize workflow
+<img width="2176" height="711" alt="image" src="https://github.com/user-attachments/assets/456fadd5-53a3-41d0-8be6-686c28174c7e" />
+
+
+
+
 ## 📦 Project structure
 
 .
