@@ -36,6 +36,20 @@ Copy code
 
 ---
 
+## Workflow diagrams
+
+Ingestion pipeline
+<img width="1577" height="1131" alt="image" src="https://github.com/user-attachments/assets/0f0a02cf-f86f-41c5-827c-066f960df380" />
+
+Q&A Flow
+<img width="1449" height="1042" alt="image" src="https://github.com/user-attachments/assets/f1d77fd2-a46e-4121-86e9-8e33a712dac8" />
+
+Summarization Flow
+<img width="2176" height="711" alt="image" src="https://github.com/user-attachments/assets/26283e6d-550a-4321-9b5d-435c897ebd97" />
+
+
+
+
 ## ⚡ Quick Start
 
 **Prereqs:** Python **3.10+** recommended.
