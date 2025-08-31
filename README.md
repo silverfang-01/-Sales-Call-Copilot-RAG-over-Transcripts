@@ -1,46 +1,34 @@
-# 🎧 Sales Call Copilot — RAG over Transcripts
+# 🎧 Sales Call Copilot
 
-Turn raw sales-call transcripts into answers and summaries using retrieval-augmented generation (RAG) with a local ChromaDB. Works fully offline for retrieval, and optionally calls **Groq** for LLM-generated answers/summaries.
-
-<p align="center">
-  <a href="https://python.org"><img alt="Python" src="https://img.shields.io/badge/Python-3.10%2B-blue.svg"></a>
-  <a href="https://github.com/astral-sh/uv"><img alt="uv" src="https://img.shields.io/badge/uv-Recommended-6f42c1"></a>
-  <img alt="License" src="https://img.shields.io/badge/License-MIT-green.svg">
-  <img alt="Tests" src="https://img.shields.io/badge/Tests-Pytest%20ready-brightgreen">
-</p>
+Turn raw sales-call transcripts into **answers** and **summaries** with Retrieval-Augmented Generation (RAG) on a **local ChromaDB** index.  
+Works fully **offline** for search/retrieval; optionally uses **Groq** (OpenAI-compatible) for LLM outputs.
 
 ---
 
-## ✨ What you get
+## ✨ Features
 
-- 🔎 **Semantic search** over your transcripts (local embeddings, no external calls required)
-- 🧩 **Chunking** that respects conversation flow
-- 🏷️ **Heuristic flags** (`mentions_pricing`, `mentions_security`, `mentions_competitor`)
-- 🤖 **Optional LLM** answers & summaries via **Groq** (falls back to “top snippets” if no key)
+- 🔎 **Semantic search** over transcripts (local sentence-transformer embeddings; no external calls required)
+- 🧩 **Character-budget chunking** that preserves conversation flow + timestamps
+- 🏷️ Heuristic flags in metadata: `mentions_pricing`, `mentions_security`, `mentions_competitor`
+- 🤖 **Optional** LLM answers & summaries via Groq (gracefully falls back to **top snippets** if no key)
 - 🛠️ Clean **Typer** CLI: `ingest`, `list`, `ask`, `summarize`
-- ✅ **Pytest** smoke tests
+- 📎 Deterministic **Sources** section appended to every answer/summary for traceability
 
 ---
 
-## 📦 Project structure
+## 🗂 Project Structure
 
 .
-├─ main.py
-├─ config.py
+├─ main.py # Typer CLI (ingest/list/ask/summarize)
+├─ config.py # TRANSCRIPTS_DIR, PERSIST_DIR, MAX_CHARS, GROQ_*
 ├─ utils/
-│ ├─ ingestion.py
-│ ├─ embeddings.py
-│ ├─ retrieval.py
-│ └─ prompts.py
-├─ transcripts/
-│ ├─ 1_demo_call.txt
-│ ├─ 2_pricing_call.txt
-│ ├─ 3_objection_call.txt
-│ └─ 4_negotiation_call.txt
-├─ tests/
-│ └─ test_pipeline.py
-├─ .env # (optional) GROQ_API_KEY=...
-├─ .chroma/ # auto-created local vector DB
+│ ├─ ingestion.py # parse_file, chunk_segments
+│ ├─ embeddings.py # get_collection, upsert_chunks
+│ ├─ retrieval.py # list_call_ids, _to_chroma_where, search
+│ └─ prompts.py # ask_qa, summarize_call, sources formatter
+├─ transcripts/ # your .txt transcripts (samples welcome)
+├─ .chroma/ # auto-created local vector DB (on first ingest)
+├─ .env # (optional) GROQ_API_KEY=..., GROQ_MODEL=...
 └─ requirements.txt
 
 yaml
@@ -48,9 +36,12 @@ Copy code
 
 ---
 
-## ⚡ Quick start
+## ⚡ Quick Start
 
-### 1) Install dependencies
+**Prereqs:** Python **3.10+** recommended.
+
+### 1) Create a virtualenv & install deps
+
 Using **uv** (recommended):
 ```bash
 uv venv
@@ -64,31 +55,33 @@ python -m venv .venv
 .venv\Scripts\activate
 # macOS/Linux:
 source .venv/bin/activate
-
 pip install -r requirements.txt
-2) (Optional) Configure Groq
+2) (Optional) Configure Groq for LLM outputs
 Create a .env in the repo root:
 
 bash
 Copy code
 # .env
 GROQ_API_KEY=your_groq_key_here
-No key? No problem. You’ll still get the top retrieved snippets; LLM steps are skipped gracefully.
+# Optional (falls back to a sensible default if omitted):
+# GROQ_MODEL=llama3-8b-8192
+No key? No problem. Retrieval still works offline. You’ll get the top retrieved snippets instead of an LLM-generated answer/summary.
 
 3) Add transcripts
-Put your .txt files into transcripts/. Example files are already listed above.
+Drop your .txt files into transcripts/. (You can start with your own or sample files.)
 
-🧪 Commands
+🧪 CLI Commands
 Show help:
 
 bash
 Copy code
 uv run python main.py --help
-Ingest transcripts → build the vector DB
+Ingest transcripts → build/update the local vector DB:
+
 bash
 Copy code
 uv run python main.py ingest
-Sample output:
+Example output:
 
 yaml
 Copy code
@@ -97,41 +90,34 @@ Ingested 2_pricing_call.txt: 51 segments → 6 chunks
 Ingested 3_objection_call.txt: 60 segments → 4 chunks
 Ingested 4_negotiation_call.txt: 85 segments → 6 chunks
 Done. Upserted 22 chunks from 4 file(s).
-List what’s indexed
+List what’s indexed:
+
 bash
 Copy code
 uv run python main.py list
-Output:
-
-diff
-Copy code
-call_ids:
-- 1_demo_call
-- 2_pricing_call
-- 3_objection_call
-- 4_negotiation_call
-Ask questions (RAG)
-General:
+Ask questions (RAG):
 
 bash
 Copy code
+# general
 uv run python main.py ask "What did security/legal ask us to provide?"
-Filter to a single call:
 
-bash
-Copy code
+# single call only
 uv run python main.py ask "What did security/legal ask us to provide?" --call-id 3_objection_call
-Only pricing-related:
 
-bash
-Copy code
-uv run python main.py ask "Give negative comments when pricing was mentioned" --pricing-only
-Tune top-K:
+# pricing-only
+uv run python main.py ask "Where was pricing discussed?" --pricing-only
 
-bash
-Copy code
-uv run python main.py ask "Any actions or next steps?" -k 8
-Summarize a call
+# security-only
+uv run python main.py ask "Any security concerns?" --security-only
+
+# competitor-only
+uv run python main.py ask "Which competitors came up?" --competitor-only
+
+# tune top-K retrieval
+uv run python main.py ask "Any next steps?" --k 8
+Summarize a call:
+
 bash
 Copy code
 # specific call
@@ -139,62 +125,77 @@ uv run python main.py summarize --call-id 1_demo_call
 
 # most recently modified transcript file
 uv run python main.py summarize --last
-🧠 How it works (short)
-Parse → Segment
-Each transcript line becomes a Segment(timestamp, speaker, text, flags).
+Exit codes: ingest (1: missing dir, 2: no files), list (3: empty index),
+ask (4: no hits), summarize (5/6/7: no transcripts / no call_id / no chunks).
 
-Chunk
-Segments are grouped into overlapping windows to preserve chronology and context.
+🧠 How It Works
+1) Parse → Segment
+Each transcript line becomes a Segment(timestamp, speaker, text, idx, call_id, flags).
 
-Embed & Upsert
-Local embeddings are created and pushed into Chroma with per-chunk metadata:
+2) Chunk
+Segments are coalesced into ~MAX_CHARS chunks (character budget) while preserving chronology. Each chunk stores scalar metadata for Chroma:
 
 call_id, start_ts, end_ts
 
-rolling flags (e.g., mentions_pricing)
+seg_start_idx, seg_end_idx
 
-Retrieve
-A similarity search pulls top-K chunks. Optional filters become Chroma “where” clauses.
+mentions_pricing, mentions_security, mentions_competitor (booleans via any(...))
 
-Generate (optional)
-If GROQ_API_KEY is set, the app asks Groq for:
+3) Embed & Upsert (ChromaDB)
+get_collection() creates a persistent collection with DefaultEmbeddingFunction (local sentence-transformers).
+On upsert, embeddings are computed at write time and stored with metadata in an HNSW index (hnsw:space="cosine").
 
-Concise answer with citations (ask)
+4) Retrieve
+search() runs a vector query for top-K with optional metadata where filters.
+Multi-key filters are normalized to explicit $and; operator filters like $or pass through.
+If a filtered query for a specific call_id returns zero, a fallback re-queries unfiltered and client-filters by call_id to avoid empty results.
 
-Structured call summary (summarize)
-If not, it prints the top snippets so you can still work offline.
+5) Generate (optional)
+If GROQ_API_KEY is set, we call Groq for:
 
-🧰 Troubleshooting
-ModuleNotFoundError: config
-Run your commands from the repo root (where main.py and config.py live).
+Q&A: concise answer grounded in snippets
 
-No such command 'ask'
-Make sure you’re invoking main.py in this repo:
+Summary: structured Markdown (TL;DR, Agenda, Key Moments, Objections, Pricing, Security, Competitors, Action Items, Risks)
+
+We do not add inline citations. Instead, we append a deterministic Sources block built from the retrieval hits:
+
+php-template
+Copy code
+Sources:
+[1] <call_id>  <start_ts>–<end_ts>  —  <shortened snippet>
+...
+If no key or an LLM error occurs, you still get a clear message plus the top snippets so the tool remains useful offline.
+
+🧩 Design Decisions (for reviewers)
+Low-level design: separate modules by lifecycle (ingestion ↔ embeddings/storage ↔ retrieval ↔ prompting ↔ CLI). Functions are small and typed; metadata remains scalar for Chroma.
+
+Storage design: one record per chunk (document + metadata + vector). HNSW + cosine suits text embeddings; metadata filters shrink the candidate set server-side.
+
+Prompt engineering: strict, low-temperature prompts that only use retrieved snippets; no inline citations. We append deterministic Sources for auditability.
+
+GenAI skills / RAG: local embeddings on upsert, metadata-aware retrieval with a call_id fallback, compact result shaping (score = 1 − distance), and clear degradation when LLM is unavailable.
+
+🛟 Troubleshooting
+ModuleNotFoundError: config — run commands from the repo root (where main.py and config.py live).
+
+No such command 'ask' — check CLI help:
 
 bash
 Copy code
 uv run python main.py --help
-Chroma “where” errors
-Let the CLI build filters for you via --call-id and --pricing-only. Don’t pass raw JSON.
+Chroma “where” errors — use CLI flags (--call-id, --pricing-only, etc.); don’t pass raw JSON.
 
-LLM not responding
-Missing or invalid GROQ_API_KEY. The tool will still return retrieved snippets either way.
+LLM not responding — missing/invalid GROQ_API_KEY. Retrieval still works; you’ll see top snippets + Sources.
 
-Corrupted local DB
-Delete .chroma/ and re-run:
+Corrupted local DB — reset and re-ingest:
 
 bash
 Copy code
-rm -rf .chroma  # Windows: rmdir /s /q .chroma
+rm -rf .chroma   # Windows: rmdir /s /q .chroma
 uv run python main.py ingest
 ✅ Tests
+If you include tests, run them with:
+
 bash
 Copy code
 uv run pytest -q
-🔧 Configuration
-Environment variables (via .env):
-
-Variable	Required	Description
-GROQ_API_KEY	No	Enables LLM responses for ask/summarize.
-
-LLM model defaults are configured in utils/prompts.py.
