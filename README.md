@@ -1,4 +1,4 @@
-# 🎧 Sales Call Copilot — RAG over Transcripts
+# 🎧 Sales Call Copilot
 
 Turn raw sales-call transcripts into answers and summaries using retrieval-augmented generation (RAG) with a local ChromaDB. Works fully offline for retrieval, and optionally calls **Groq** for LLM-generated answers/summaries.
 
